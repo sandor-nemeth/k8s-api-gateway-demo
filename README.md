@@ -1,12 +1,12 @@
 # API Gateway demos
 
-This document tries to achieve a couple of goals: 
+This project tries to achieve a couple of goals: 
 
 1. Deploy [Kong], [Tyk] and [Ambassador] as kubernetes ingresses. 
 2. Provide the following features to test:
-  1. Ingress-based, domain and path driven access to services
-  2. graphical UI 
-  3. Authentication and access control configured in the gateway
+    1. Ingress-based, domain and path driven access to services
+    2. A graphical UI (if exist)
+    3. Authentication and access control configured in the gateway
 3. Use [Keycloak] as an authentication source
 
 ## Setup
@@ -70,47 +70,6 @@ echo "$KUBE_IP  foo.tyk.local\n$KUBE_IP  bar.tyk.local" \
 echo "$KUBE_IP  foo.ambassador.local\n$KUBE_IP  bar.ambassador.local" \
     | sudo tee -a /etc/hosts
 ```
-
-## Kong
-
-To install kong, use `helm`: 
-
-```shell script
-# install kong
-helm install --name kong kong/kong \
-    --set admin.enabled=true \
-    --set admin.http.enabled=true \
-    --set admin.tls.enabled=false
-
-# export the port where it is running
-export KONG_PORT=$(minikube service -n default kong-kong-proxy --url \
-    | head -n 1 | awk -F: '{print $NF}')
-```
-
-Install and configure konga to connect to the Kong admin API:
-
-```shell script
-kubectl apply -f kong/konga.yaml
-```
-
-And then use the `http://kong-kong-admin:8001` URL to connect to the
-Kong gateway.
-
-Then install the prepared ingress:
-
-```shell script
-kubectl apply -f kong/kong-ingress.yaml
-```
-
-And then test all routes:
-
-```shell script
-curl  $KUBE_IP:$KONG_PORT/foo
-curl  $KUBE_IP:$KONG_PORT/bar #TODO this does not work for some reason...
-curl foo.kong.local:$KONG_PORT
-curl bar.kong.local:$KONG_PORT
-```
-
 
 [Kong]: https://konghq.com/kong/
 [Tyk]: https://tyk.io/
