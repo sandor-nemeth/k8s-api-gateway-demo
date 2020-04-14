@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloserver
+  labels:
+    app: helloserver
+    module: test
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: helloserver
+    module: test
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: helloserver
+  labels:
+    app: helloserver
+    module: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: helloserver
+      module: test
+  template:
+    metadata:
+      labels:
+        app: helloserver
+        module: test
+    spec:
+      containers:
+      - name: helloserver
+        image: paulbouwer/hello-kubernetes:1.7
+        ports:
+        - containerPort: 8080

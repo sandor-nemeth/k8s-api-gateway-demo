@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: kong-ingress
+  annotations:
+    kubernetes.io/ingress.class: "kong"
+spec:
+  rules:
+  - host: foo.kong.local
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: echoserver
+          servicePort: 8080
+  - host: bar.kong.local
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: helloserver
+          servicePort: 80
+  - http:
+      paths:
+      - path: /foo
+        backend:
+          serviceName: echoserver
+          servicePort: 8080
+      - path: /bar
+        backend:
+          serviceName: helloserver
+          servicePort: 80
