@@ -31,12 +31,15 @@ helm repo update
 ```
 
 This gives us a fully set up kubernetes environment with helm also
-initialized. To test the gateways, we will utilize a simple echo
-service, which provides us with a simple response containing the
-request properties:
+initialized. To test the gateways, we will utilize:
+
+- a simple `echoservice`, which provides us with a simple response
+  containing the request properties, and
+- a `helloservice`, which provides a second service for us to route to
 
 ```shell script
 kubectl apply -f common/echoserver.yaml
+kubectl apply -f common/helloserver.yaml
 ```
 
 To support the authentication test cases, a [Keycloak] instance will be

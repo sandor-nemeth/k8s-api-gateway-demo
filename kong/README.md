@@ -18,6 +18,7 @@ Install and configure konga to connect to the Kong admin API:
 
 ```shell script
 kubectl apply -f kong/konga.yaml
+minikube service konga-svc
 ```
 
 And then use the `http://kong-kong-admin:8001` URL to connect to the
