@@ -1,0 +1,14 @@
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: kong-oidc-plugin
+global: “false”
+enabled: true
+config:
+  client_id: kong
+  client_secret: dc228bf9-6498-48bf-8801-ee58da2072f1
+  discovery:  http://keycloak-http/auth/realms/testrealm/.well-known/openid-configuration
+  realm: testrealm
+  introspection_endpoint: http://keycloak-http/auth/realms/testrealm/protocol/openid-connect/token/introspect
+plugin: oidc

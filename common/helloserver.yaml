@@ -24,7 +24,7 @@ metadata:
     app: helloserver
     module: test
 spec:
-  replicas: 2
+  replicas: 3 
   selector:
     matchLabels:
       app: helloserver

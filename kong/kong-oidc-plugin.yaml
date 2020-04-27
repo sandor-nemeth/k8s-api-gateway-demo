@@ -1,0 +1,247 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-oidc-plugin
+data:
+  filter.lua: |
+    local M = {}
+
+    local function shouldIgnoreRequest(patterns)
+      if (patterns) then
+        for _, pattern in ipairs(patterns) do
+          local isMatching = not (string.find(ngx.var.uri, pattern) == nil)
+          if (isMatching) then return true end
+        end
+      end
+      return false
+    end
+
+    function M.shouldProcessRequest(config)
+      return not shouldIgnoreRequest(config.filters)
+    end
+
+    return M
+  handler.lua: |
+    local BasePlugin = require "kong.plugins.base_plugin"
+    local OidcHandler = BasePlugin:extend()
+    local utils = require("kong.plugins.oidc.utils")
+    local filter = require("kong.plugins.oidc.filter")
+    local session = require("kong.plugins.oidc.session")
+
+    OidcHandler.PRIORITY = 1000
+
+
+    function OidcHandler:new()
+      OidcHandler.super.new(self, "oidc")
+    end
+
+    function OidcHandler:access(config)
+      OidcHandler.super.access(self)
+      local oidcConfig = utils.get_options(config, ngx)
+
+      if filter.shouldProcessRequest(oidcConfig) then
+        session.configure(config)
+        handle(oidcConfig)
+      else
+        ngx.log(ngx.DEBUG, "OidcHandler ignoring request, path: " .. ngx.var.request_uri)
+      end
+
+      ngx.log(ngx.DEBUG, "OidcHandler done")
+    end
+
+    function handle(oidcConfig)
+      local response
+      if oidcConfig.introspection_endpoint then
+        response = introspect(oidcConfig)
+        if response then
+          utils.injectUser(response)
+        end
+      end
+
+      if response == nil then
+        response = make_oidc(oidcConfig)
+        if response then
+          if (response.user) then
+            utils.injectUser(response.user)
+          end
+          if (response.access_token) then
+            utils.injectAccessToken(response.access_token)
+          end
+          if (response.id_token) then
+            utils.injectIDToken(response.id_token)
+          end
+        end
+      end
+    end
+
+    function make_oidc(oidcConfig)
+      ngx.log(ngx.DEBUG, "OidcHandler calling authenticate, requested path: " .. ngx.var.request_uri)
+      local res, err = require("resty.openidc").authenticate(oidcConfig)
+      if err then
+        if oidcConfig.recovery_page_path then
+          ngx.log(ngx.DEBUG, "Entering recovery page: " .. oidcConfig.recovery_page_path)
+          ngx.redirect(oidcConfig.recovery_page_path)
+        end
+        utils.exit(500, err, ngx.HTTP_INTERNAL_SERVER_ERROR)
+      end
+      return res
+    end
+
+    function introspect(oidcConfig)
+      if utils.has_bearer_access_token() or oidcConfig.bearer_only == "yes" then
+        local res, err = require("resty.openidc").introspect(oidcConfig)
+        if err then
+          if oidcConfig.bearer_only == "yes" then
+            ngx.header["WWW-Authenticate"] = 'Bearer realm="' .. oidcConfig.realm .. '",error="' .. err .. '"'
+            utils.exit(ngx.HTTP_UNAUTHORIZED, err, ngx.HTTP_UNAUTHORIZED)
+          end
+          return nil
+        end
+        ngx.log(ngx.DEBUG, "OidcHandler introspect succeeded, requested path: " .. ngx.var.request_uri)
+        return res
+      end
+      return nil
+    end
+
+
+    return OidcHandler
+  schema.lua: |
+    return {
+      no_consumer = true,
+      fields = {
+        client_id = { type = "string", required = true },
+        client_secret = { type = "string", required = true },
+        discovery = { type = "string", required = true, default = "https://.well-known/openid-configuration" },
+        introspection_endpoint = { type = "string", required = false },
+        timeout = { type = "number", required = false },
+        introspection_endpoint_auth_method = { type = "string", required = false },
+        bearer_only = { type = "string", required = true, default = "no" },
+        realm = { type = "string", required = true, default = "kong" },
+        redirect_uri_path = { type = "string" },
+        scope = { type = "string", required = true, default = "openid" },
+        response_type = { type = "string", required = true, default = "code" },
+        ssl_verify = { type = "string", required = true, default = "no" },
+        token_endpoint_auth_method = { type = "string", required = true, default = "client_secret_post" },
+        session_secret = { type = "string", required = false },
+        recovery_page_path = { type = "string" },
+        logout_path = { type = "string", required = false, default = '/logout' },
+        redirect_after_logout_uri = { type = "string", required = false, default = '/' },
+        filters = { type = "string" }
+      }
+    }
+  session.lua: |
+    local utils = require("kong.plugins.oidc.utils")
+
+    local M = {}
+
+    function M.configure(config)
+      if config.session_secret then
+        local decoded_session_secret = ngx.decode_base64(config.session_secret)
+        if not decoded_session_secret then
+          utils.exit(500, "invalid OIDC plugin configuration, session secret could not be decoded", ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR))
+        end
+        ngx.var.session_secret = decoded_session_secret
+      end
+    end
+
+    return M
+  utils.lua: |
+    local cjson = require("cjson")
+
+    local M = {}
+
+    local function parseFilters(csvFilters)
+      local filters = {}
+      if (not (csvFilters == nil)) then
+        for pattern in string.gmatch(csvFilters, "[^,]+") do
+          table.insert(filters, pattern)
+        end
+      end
+      return filters
+    end
+
+    function M.get_redirect_uri_path(ngx)
+      local function drop_query()
+        local uri = ngx.var.request_uri
+        local x = uri:find("?")
+        if x then
+          return uri:sub(1, x - 1)
+        else
+          return uri
+        end
+      end
+
+      local function tackle_slash(path)
+        local args = ngx.req.get_uri_args()
+        if args and args.code then
+          return path
+        elseif path == "/" then
+          return "/cb"
+        elseif path:sub(-1) == "/" then
+          return path:sub(1, -2)
+        else
+          return path .. "/"
+        end
+      end
+
+      return tackle_slash(drop_query())
+    end
+
+    function M.get_options(config, ngx)
+      return {
+        client_id = config.client_id,
+        client_secret = config.client_secret,
+        discovery = config.discovery,
+        introspection_endpoint = config.introspection_endpoint,
+        timeout = config.timeout,
+        introspection_endpoint_auth_method = config.introspection_endpoint_auth_method,
+        bearer_only = config.bearer_only,
+        realm = config.realm,
+        redirect_uri_path = config.redirect_uri_path or M.get_redirect_uri_path(ngx),
+        scope = config.scope,
+        response_type = config.response_type,
+        ssl_verify = config.ssl_verify,
+        token_endpoint_auth_method = config.token_endpoint_auth_method,
+        recovery_page_path = config.recovery_page_path,
+        filters = parseFilters(config.filters),
+        logout_path = config.logout_path,
+        redirect_after_logout_uri = config.redirect_after_logout_uri,
+      }
+    end
+
+    function M.exit(httpStatusCode, message, ngxCode)
+      ngx.status = httpStatusCode
+      ngx.say(message)
+      ngx.exit(ngxCode)
+    end
+
+    function M.injectAccessToken(accessToken)
+      ngx.req.set_header("X-Access-Token", accessToken)
+    end
+
+    function M.injectIDToken(idToken)
+      local tokenStr = cjson.encode(idToken)
+      ngx.req.set_header("X-ID-Token", ngx.encode_base64(tokenStr))
+    end
+
+    function M.injectUser(user)
+      local tmp_user = user
+      tmp_user.id = user.sub
+      tmp_user.username = user.preferred_username
+      ngx.ctx.authenticated_credential = tmp_user
+      local userinfo = cjson.encode(user)
+      ngx.req.set_header("X-Userinfo", ngx.encode_base64(userinfo))
+    end
+
+    function M.has_bearer_access_token()
+      local header = ngx.req.get_headers()['Authorization']
+      if header and header:find(" ") then
+        local divider = header:find(' ')
+        if string.lower(header:sub(0, divider-1)) == string.lower("Bearer") then
+          return true
+        end
+      end
+      return false
+    end
+
+    return M
