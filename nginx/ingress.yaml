@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  # annotations:
+  #   ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: api.nginx.local
+    http:
+      paths:
+      - path: /foo
+        backend:
+          serviceName: echoserver
+          servicePort: 80
+      - path: /bar
+        backend:
+          serviceName: helloserver
+          servicePort: 80

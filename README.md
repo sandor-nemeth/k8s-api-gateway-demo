@@ -42,6 +42,23 @@ kubectl apply -f common/echoserver.yaml
 kubectl apply -f common/helloserver.yaml
 ```
 
+Replace the IP address with `minikube ip`, and then add these entries
+to the `/etc/hosts` file:
+```
+192.168.99.108  api.nginx.local
+192.168.99.108  api.tyk.local
+192.168.99.108  api.kong.local
+192.168.99.108  api.ambassador.local
+192.168.99.108  secure.nginx.local
+192.168.99.108  secure.tyk.local
+192.168.99.108  secure.kong.local
+192.168.99.108  secure.ambassador.local
+```
+
+
+
+
+
 To support the authentication test cases, a [Keycloak] instance will be
 set up: 
 

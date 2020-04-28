@@ -1,13 +1,21 @@
 ## Kong
+Create a namespace for kong:
+
+```shell script
+kubectl create namespace kong
+
+kubectl apply -n kong -f kong/kong-oidc-plugin.yaml
+```
 
 To install kong, use `helm`: 
 
 ```shell script
 # install kong
-helm install --name kong kong/kong \
-    --set admin.enabled=true \
-    --set admin.http.enabled=true \
-    --set admin.tls.enabled=false
+helm install \
+    --namespace kong \
+    --name kong \
+    --values kong/kong.helm.yaml \
+    kong/kong
 
 # export the port where it is running
 export KONG_PORT=$(minikube service -n default kong-kong-proxy --url \
@@ -17,8 +25,7 @@ export KONG_PORT=$(minikube service -n default kong-kong-proxy --url \
 Install and configure konga to connect to the Kong admin API:
 
 ```shell script
-kubectl apply -f kong/konga.yaml
-minikube service konga-svc
+kubectl apply -n kong -f kong/konga.yaml
 ```
 
 And then use the `http://kong-kong-admin:8001` URL to connect to the

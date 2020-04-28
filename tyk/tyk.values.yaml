@@ -1,0 +1,2 @@
+redis:
+  host: "tyk-redis-master.tyk.svc.cluster.local"
