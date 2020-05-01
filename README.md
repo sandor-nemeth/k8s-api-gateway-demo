@@ -55,40 +55,24 @@ to the `/etc/hosts` file:
 192.168.99.108  secure.ambassador.local
 ```
 
-
-
-
-
 To support the authentication test cases, a [Keycloak] instance will be
 set up: 
 
 ```shell script
-helm install --name keycloak codecentric/keycloak
+helm install --values common/keycloak.helm.yaml --name keycloak codecentric/keycloak
 
 # get the generated password
-kubectl get secret -n default keycloak-http -o jsonpath="{.data.password}" \
-    | base64 --decode; echo
+kubectl get secret -n default keycloak-http -o jsonpath="{.data.password}" base64 --decode; echo
 ```
 
-### Required environment variables
-
-After finished with the `Setup` section, executing the script below
-will provide the variables the further sections of the README
-reference.
+Afterwards log in to Keycloak using 
 
 ```shell script
-export KUBE_IP=$(minikube ip)
+minikube service keycloak-http
 ```
 
-Set up all resolvable names in the `/etc/hosts` file:
-
 ```shell script
-echo "$KUBE_IP  foo.kong.local\n$KUBE_IP  bar.kong.local" \
-    | sudo tee -a /etc/hosts
-echo "$KUBE_IP  foo.tyk.local\n$KUBE_IP  bar.tyk.local" \
-    | sudo tee -a /etc/hosts
-echo "$KUBE_IP  foo.ambassador.local\n$KUBE_IP  bar.ambassador.local" \
-    | sudo tee -a /etc/hosts
+export KEYCLOAK_URL=`minikube service keycloak-http --url | head -n 1`
 ```
 
 [Kong]: https://konghq.com/kong/

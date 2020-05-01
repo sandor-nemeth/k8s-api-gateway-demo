@@ -1,0 +1,15 @@
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: keycloak-oidc
+  namespace: default
+global: “false”
+enabled: true
+config:
+  client_id: kong
+  client_secret: daced59f-c65a-4de5-93b5-e11b01d6841d
+  discovery:  http://keycloak-http.default.svc.cluster.local/auth/realms/up42/.well-known/openid-configuration
+  realm: up42
+  introspection_endpoint: http://keycloak-http.default.svc.cluster.local/auth/realms/up42/protocol/openid-connect/token/introspect
+plugin: oidc

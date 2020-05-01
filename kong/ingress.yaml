@@ -1,27 +1,44 @@
 ---
-apiVersion: configuration.konghq.com/v1
-kind: KongIngress
-metadata:
-  name: kong-ingress
-route:
-  strip_path: true
----
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: kong-ingress
   annotations:
     kubernetes.io/ingress.class: "kong"
+    konghq.com/strip-path: "true"
 spec:
   rules:
   - host: api.kong.local
     http:
       paths:
-      - path: /foo
+      - path: /echo
         backend:
-          serviceName: echoserver
+          serviceName: echo
           servicePort: 80
-      - path: /bar
+      - path: /hello
         backend:
-          serviceName: helloserver
+          serviceName: hello
           servicePort: 80
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: secure-kong-ingress
+  annotations:
+    kubernetes.io/ingress.class: "kong"
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: keycloak-oidc
+spec:
+  rules:
+  - host: api.kong.local
+    http:
+      paths:
+      - path: /secure/echo
+        backend:
+          serviceName: echo
+          servicePort: 80
+      - path: /secure/hello
+        backend:
+          serviceName: hello
+          servicePort: 80
+          
