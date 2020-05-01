@@ -38,8 +38,8 @@ initialized. To test the gateways, we will utilize:
 - a `helloservice`, which provides a second service for us to route to
 
 ```shell script
-kubectl apply -f common/echoserver.yaml
-kubectl apply -f common/helloserver.yaml
+kubectl apply -f common/echo.yaml
+kubectl apply -f common/hello.yaml
 ```
 
 Replace the IP address with `minikube ip`, and then add these entries

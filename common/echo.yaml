@@ -1,42 +1,39 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: helloserver
+  name: echo
   labels:
-    app: helloserver
+    app: echo
     module: test
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
-  - port: 80
+  - port: 8080
     targetPort: 8080
     protocol: TCP
     name: http
   selector:
-    app: helloserver
+    app: echo
     module: test
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: helloserver
-  labels:
-    app: helloserver
-    module: test
+  name: echo
 spec:
-  replicas: 3
   selector:
     matchLabels:
-      app: helloserver
+      app: echo
       module: test
+  replicas: 3
   template:
     metadata:
       labels:
-        app: helloserver
+        app: echo
         module: test
     spec:
       containers:
-      - name: helloserver
-        image: paulbouwer/hello-kubernetes:1.7
+      - name: echo
+        image: k8s.gcr.io/echoserver:1.4
         ports:
         - containerPort: 8080
